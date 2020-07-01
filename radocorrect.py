@@ -72,10 +72,12 @@ def Interpolation_2D(dataarray,method='cubic'):
                                  method=method)
     return interpolated_array    
 #%% setting
-start_time='2019-11-01:1500'
-end_time='2019-11-03:0300'
+start_time='2007-01-01:1500'
+end_time='2007-01-03:0300'
 domain_path='.\\Input\\Mueglitz_basin_grid.shp'
 dwd_search_area_path='.\\Input\\dwd_rectangle.shp'
+no_of_nearest_stations=5
+
 #%% Get the radolan data for a certain time period
 
 rado_init=downloader.downloader(start_time=start_time, end_time=end_time,roi=dwd_search_area_path,roi_buffer=0.01)
@@ -108,13 +110,13 @@ test,dwd_base=weather.Find_nearest_dwd_stations(domain,
     dwd_time_format='%Y%m%d%H',
     data_category='precipitation',
     temp_resolution='hourly',
-    no_of_nearest_stations=5,
+    no_of_nearest_stations=no_of_nearest_stations,
     memory_save=True,
     Output='True')
 
 #cut the dwd database to the actual dates of the radolan dataset
 dwd_base=dwd_base.sel(time=rado_rain.coords['time'].values)
-
+print(str(len(dwd_base.STATIONS_ID)),'Stations with valid rainfall data used')
 #%%load the station network  and check their positions on radogrid
 #check file
 files=os.listdir('.\\roverweb\\tables\\')
@@ -139,7 +141,7 @@ dwd_stations[['geo_x','geo_y']]=np.array([transformer.transform(*xy) for xy in n
 
 position_indices=np.array(dwd_stations.apply(get_nearest_indices,axis=1,geometry_column=['geo_x','geo_y'],coordinate_array=[rado_x,rado_y]).to_list())
 # add station ID as last column
-position_indices=np.append(position_indices,np.array(dwd_stations.STATIONS_ID).reshape(9,1),axis=1)
+position_indices=np.append(position_indices,np.array(dwd_stations.STATIONS_ID).reshape(np.size(position_indices,0),1),axis=1)
 #next we loop with isel through the entire rado_rain to get hour data
 for station in position_indices:
     station_rado=rado_rain.isel(x=station[0],y=station[1])
@@ -156,14 +158,19 @@ for station in position_indices:
 
 #%% Next we interpolate over the nans using a loop, apply is possible as well
 for time_step in range(0,rain_multiplicator.sizes['time']):
-    interpolated_grid=Interpolation_2D(rain_multiplicator[time_step,:,:],method='linear')
-    # we have to interpolate a second time to extrapolate all remaining nans, which are outside convex hull
-    # discussion @ https://stackoverflow.com/questions/21993655/interpolation-and-extrapolation-of-randomly-scattered-data-to-uniform-grid-in-3d
-    nearest_grid=Interpolation_2D(rain_multiplicator[time_step,:,:],method='nearest')
-    #replace the nan of initial interpolation with the ones from nearest grid
-    nan_locations=np.isnan(interpolated_grid)
-    interpolated_grid[nan_locations]=nearest_grid[nan_locations]
-    rain_multiplicator[time_step,:,:]=interpolated_grid
+    #check whether at least for the minimum number of stations exist non-nan values
+    #because the problem is that radolan has invalid data nan
+    if np.count_nonzero(~np.isnan(rain_multiplicator[time_step,:,:]))<no_of_nearest_stations:
+        print('Not enough valid points to interpolated for time step ',str(time_step))
+    else:   
+        interpolated_grid=Interpolation_2D(rain_multiplicator[time_step,:,:],method='linear')
+        # we have to interpolate a second time to extrapolate all remaining nans, which are outside convex hull
+        # discussion @ https://stackoverflow.com/questions/21993655/interpolation-and-extrapolation-of-randomly-scattered-data-to-uniform-grid-in-3d
+        nearest_grid=Interpolation_2D(rain_multiplicator[time_step,:,:],method='nearest')
+        #replace the nan of initial interpolation with the ones from nearest grid
+        nan_locations=np.isnan(interpolated_grid)
+        interpolated_grid[nan_locations]=nearest_grid[nan_locations]
+        rain_multiplicator[time_step,:,:]=interpolated_grid
     
 #%% reduce data array dimension to actual roi coordinates
 #get domain bounds
@@ -183,7 +190,8 @@ rado_corrected=rado_rain[:,:,:]*rain_multiplicator[:,:,:]
 ds_out = rado_rain.to_dataset(name = 'radolan')
 ds_out['correction_factor']=rain_multiplicator
 ds_out['radolan_corrected']=rado_corrected
-
-ds_out.to_netcdf('radolan_correct_'+start_time[0:10]+'_'+end_time[0:10]+'.nc')
+#write it out
+os.makedirs("Output", exist_ok=True) 
+ds_out.to_netcdf('.\\Output\\radolan_correct_'+start_time[0:10]+'_'+end_time[0:10]+'.nc')
 
 
