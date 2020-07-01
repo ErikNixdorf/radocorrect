@@ -505,7 +505,7 @@ def Apnd_dwd_data(inpt_data,dwd_dbase,
         #loop over all the available stations
         for i in range (0,no_of_nearest_stations):
             #add station data colummn-wise
-            station_data=dwd_dbase[parameter].sel(STATIONS_ID=xr.DataArray(inpt_data[data_category+'_station_'+str(i)]), time=xr.DataArray(df_times)).values
+            station_data=dwd_dbase[parameter].sel(STATIONS_ID=xr.DataArray(inpt_data[data_category+'_station_'+str(i)]), time=xr.DataArray(df_times),method='nearest').values
             #http://xarray.pydata.org/en/stable/indexing.html                
             #check for nan values
             station_data[np.where(station_data==-999)]=np.nan
