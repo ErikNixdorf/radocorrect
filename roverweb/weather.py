@@ -477,7 +477,7 @@ def Find_nearest_dwd_stations(inpt_data,
     distance_data=pd.concat([pd.DataFrame(id_nearest_stations).astype(int),pd.DataFrame(dist_nearest_stations)],axis=1)
     distance_data.columns=station_col_nm
     #add to main dataset
-    inpt_data=pd.concat([inpt_data, distance_data],axis=1)    
+    inpt_data=pd.concat([inpt_data, distance_data.set_index(inpt_data.index)],axis=1)   
     
     return inpt_data,db_dwd_stations
 

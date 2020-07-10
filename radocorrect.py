@@ -72,8 +72,8 @@ def Interpolation_2D(dataarray,method='cubic'):
                                  method=method)
     return interpolated_array    
 #%% setting
-start_time='2007-01-01:1500'
-end_time='2007-01-03:0300'
+start_time='2007-01-31:1500'
+end_time='2007-02-03:0300'
 domain_path='.\\Input\\Mueglitz_basin_grid.shp'
 dwd_search_area_path='.\\Input\\dwd_rectangle.shp'
 no_of_nearest_stations=5
@@ -190,6 +190,8 @@ rado_corrected=rado_rain[:,:,:]*rain_multiplicator[:,:,:]
 ds_out = rado_rain.to_dataset(name = 'radolan')
 ds_out['correction_factor']=rain_multiplicator
 ds_out['radolan_corrected']=rado_corrected
+#sort the time
+ds_out=ds_out.sortby('time')
 #write it out
 os.makedirs("Output", exist_ok=True) 
 ds_out.to_netcdf('.\\Output\\radolan_correct_'+start_time[0:10]+'_'+end_time[0:10]+'.nc')
