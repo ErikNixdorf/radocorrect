@@ -74,7 +74,7 @@ def update_stationlist(time_res='hourly',dbase_dir='dbase'):
     
     """
 
-    
+    #dwd categories
     dwd_abbr = {'air_temperature': 'TU',
                   'cloud_type': 'CS', 
                   'cloudiness': 'N',
@@ -88,9 +88,14 @@ def update_stationlist(time_res='hourly',dbase_dir='dbase'):
                   'sun': 'SD',
                   'visibility': 'VV',
                   'wind': 'FF',
-                  'wind_synop': 'F'
+                  'wind_synop': 'F',
+                  'kl':'KL',
+                  'more_precip':'RR',
+                  'soil_temperature':'EB',
+                  'water_equiv':'Wa',
+                  'weather_phenomena':'wetter'                  
                   }
-    
+
     # lets start
     print('Updating station list')
         
@@ -101,7 +106,7 @@ def update_stationlist(time_res='hourly',dbase_dir='dbase'):
         
     #check whether we have an up-to-date-station-list-already
     try:
-        stations_network_old=[s for s in os.listdir(dbase_dir) if 'dwd_station_network' in s][0]
+        stations_network_old=[s for s in os.listdir(dbase_dir) if 'dwd_station_network_'+time_res in s][0]
         datetime_network=datetime.date(datetime.strptime(re.findall('\d+',stations_network_old)[0],'%Y%m%d'))
         #update if more than 24hours
         dt_today=datetime.date(datetime.now())
@@ -127,6 +132,8 @@ def update_stationlist(time_res='hourly',dbase_dir='dbase'):
     ftp=connect_ftp(server = server,connected = False)
     #change to subfolder
     ftp.cwd('/climate_environment/CDC/observations_germany/climate/' + time_res +'/')
+    
+    #if data is not daily, we have to check categorywise the availability of information
     #get dwd categories
     dwd_categories=ftp.nlst()
     #loop through the subfolders  to get the station lists
@@ -144,11 +151,20 @@ def update_stationlist(time_res='hourly',dbase_dir='dbase'):
             except:
                 print('Category', category, 'could not have been downloaded')
                 pass
+        #get the filename of the station list
+        if time_res=='hourly':
+            filename=dwd_abbr[category]+'_Stundenwerte_Beschreibung_Stationen.txt'
+        if time_res=='daily':
+            if dwd_abbr[category] =='wetter':
+                filename=dwd_abbr[category]+'_tageswerte_Beschreibung_Stationen.txt'
+            else:                    
+                filename=dwd_abbr[category]+'_Tageswerte_Beschreibung_Stationen.txt'
+        if time_res=='10_minutes':
+            filename='zehn_min_'+dwd_abbr[category].lower()+'_Beschreibung_Stationen.txt'
         #retrieve the stationlist
         stationlist = []
         # try to retrieve file
         retrieved=False
-        filename=dwd_abbr[category]+'_Stundenwerte_Beschreibung_Stationen.txt'
         while not retrieved:
             try:
                 ftp.retrlines("RETR " + filename, stationlist.append)
@@ -185,7 +201,7 @@ def update_stationlist(time_res='hourly',dbase_dir='dbase'):
     #for temperature the same
     stations_network.loc[stations_network.STATIONS_ID=='14138','air_temperature']=False
     #save to database writing the time as well
-    filename_stations=dbase_dir+'\\dwd_station_network_'+datetime.now().strftime('%Y%m%d')+'.csv'
+    filename_stations=dbase_dir+'\\dwd_station_network_' + time_res+'_' + datetime.now().strftime('%Y%m%d')+'.csv'
     stations_network.to_csv(filename_stations,index=False)
                   
     print('Updating station list...finished')
@@ -414,7 +430,6 @@ def import_stations(time_res='hourly',time_format='%Y%m%d%H',
 def Find_nearest_dwd_stations(inpt_data,
                          date_start='20051201',
                          date_end='20201231',
-                         dwd_time_format='%Y%m%d%H',
                          data_category='air_temperature',
                          temp_resolution='hourly',
                          no_of_nearest_stations=4,
@@ -430,6 +445,12 @@ def Find_nearest_dwd_stations(inpt_data,
                 'Currently only one dwd category allowed, please run function multiple times for each category'
             )
             return None
+    #define dwd time format for each temporal_resolution
+    dwd_time_formats={'hourly':'%Y%m%d%H',
+                      'daily':'%Y%m%d',
+                      '10_minutes':'%Y%m%d%H%M'}
+    
+    dwd_time_format=dwd_time_formats[temp_resolution]
         
     #convert time to datetime
     dt_start=datetime.strptime(date_start,'%Y%m%d')
@@ -440,7 +461,7 @@ def Find_nearest_dwd_stations(inpt_data,
     table_dir = pypath + '\\' + 'tables'
     dbase_dir = pypath + '\\' + 'dbase'    
     #%% we check all available stations and create a valid list
-    filename_stations=update_stationlist(time_res='hourly',dbase_dir=table_dir)
+    filename_stations=update_stationlist(time_res=temp_resolution,dbase_dir=table_dir)
     stations_all=pd.read_csv(filename_stations, dtype={'STATIONS_ID': object})
     # delete all stations which do not cover the category
     dwd_stations=stations_all[stations_all[data_category]==True].copy()

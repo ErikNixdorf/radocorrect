@@ -72,8 +72,8 @@ def Interpolation_2D(dataarray,method='cubic'):
                                  method=method)
     return interpolated_array    
 #%% setting
-start_time='2007-01-31:1500'
-end_time='2007-02-03:0300'
+start_time='2007-11-05:1500'
+end_time='2007-11-06:1800'
 domain_path='.\\Input\\Mueglitz_basin_grid.shp'
 dwd_search_area_path='.\\Input\\dwd_rectangle.shp'
 no_of_nearest_stations=5
@@ -107,7 +107,6 @@ domain=gpd.GeoDataFrame.from_file(domain_path)
 test,dwd_base=weather.Find_nearest_dwd_stations(domain,
     date_start=datetime.strptime(start_time,'%Y-%m-%d:%H%M').date().strftime('%Y%m%d'),
     date_end=datetime.strptime(end_time,'%Y-%m-%d:%H%M').date().strftime('%Y%m%d'),
-    dwd_time_format='%Y%m%d%H',
     data_category='precipitation',
     temp_resolution='hourly',
     no_of_nearest_stations=no_of_nearest_stations,
