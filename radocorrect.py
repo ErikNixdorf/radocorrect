@@ -77,6 +77,8 @@ end_time='2007-11-06:1800'
 domain_path='.\\Input\\Mueglitz_basin_grid.shp'
 dwd_search_area_path='.\\Input\\dwd_rectangle.shp'
 no_of_nearest_stations=5
+#define a relative threshold (percentile) to remove outliers in the correction factor
+thresh_percentile=0.95
 
 #%% Get the radolan data for a certain time period
 
@@ -184,11 +186,14 @@ rado_rain=rado_rain.sel(x=slice(domain_bounds_rado[0,0],domain_bounds_rado[1,0])
                                           )
 
 #%% multiply datasets and append to original xarray
+#set all values above threshold to threshold
+threshold=rain_multiplicator.quantile(thresh_percentile)
+rain_multiplicator=rain_multiplicator.where(rain_multiplicator<threshold,threshold)
 rado_corrected=rado_rain[:,:,:]*rain_multiplicator[:,:,:]
 #%% write final dataset
 ds_out = rado_rain.to_dataset(name = 'radolan')
 ds_out['correction_factor']=rain_multiplicator
-ds_out['radolan_corrected']=rado_corrected
+ds_out['radolan_corrected']=rado_corrected.where(rado_corrected>=0)
 #sort the time
 ds_out=ds_out.sortby('time')
 #write it out
