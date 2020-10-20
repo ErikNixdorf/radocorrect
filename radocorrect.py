@@ -72,8 +72,8 @@ def Interpolation_2D(dataarray,method='cubic'):
                                  method=method)
     return interpolated_array    
 #%% 
-def radocorrect(start_time='2007-11-05:1500',
-              end_time='2007-11-06:1800',
+def radocorrect(start_time='2020-10-01 15:00',
+              end_time='2020-10-02 18:00',
               domain_path='.\\Input\\Mueglitz_basin_grid.shp',
               dwd_search_area_path='.\\Input\\dwd_rectangle.shp',
               no_of_nearest_stations=5,
@@ -91,15 +91,15 @@ def radocorrect(start_time='2007-11-05:1500',
 
     rado_rain_raw=rado_init.radorecent(time_res='hourly',to_harddisk=False)
 
-    rado_rain=10*rado_rain_raw.RW # to mm
+    rado_rain=10*rado_rain_raw.hourly_rainfall # to mm
     # make invalid values to nan
     rado_rain=rado_rain.where(rado_rain>=0,drop=True)
 
     #manipulate the time by 10 min
     rado_rain.coords['time'].values=rado_rain.coords['time'].values+np.timedelta64(10,'m')
     #get rado coordinates
-    rado_x=rado_rain.coords['x'].values
-    rado_y=rado_rain.coords['y'].values
+    rado_x=rado_rain.coords['lon'].values
+    rado_y=rado_rain.coords['lat'].values
     #create empty array which will be for the factor between station and radolan data
     rain_multiplicator = xr.DataArray(np.empty([rado_rain.sizes['time'],rado_rain.sizes['y'],rado_rain.sizes['x']])*np.nan,
                         dims=rado_rain.dims,
